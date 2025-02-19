@@ -22,5 +22,18 @@
     "icons": {
         "48": "icon.png",
         "128": "icon.png"
+    },
+    "web_accessible_resources": [
+    {
+        "resources": ["highlight.js"],
+        "matches": ["https://www.netacad.com/*"]
     }
+    ],
+    "content_scripts": [
+        {
+            "matches": ["https://www.netacad.com/*"],
+            "js": ["highlight.js", "content.js"],
+            "run_at": "document_idle"
+        }
+    ]
 }
