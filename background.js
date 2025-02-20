@@ -4,109 +4,79 @@ chrome.webRequest.onCompleted.addListener(
     async (details) => {
         const url = details.url;
 
-        // ✅ Only fetch new components.json URLs
         if (!url.includes("/components.json") || processedUrls.has(url)) return;
 
-        processedUrls.add(url); // Mark this URL as processed
-        console.log(`Fetching new components.json: ${url}`);
+        processedUrls.add(url);
+        console.log(`🔄 [background.js] Fetching new components.json: ${url}`);
 
         try {
-            const response = await fetch(url, {
-                headers: {
-                    "Authorization": "Bearer YOUR_ACCESS_TOKEN" // If required
-                }
-            });
-
+            const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const quizData = await response.json();
-            const processedData = processQuizData(quizData);
+            const correctAnswers = extractCorrectAnswers(quizData);
 
-            // ✅ Store processed quiz data in local storage for popup display
-            chrome.storage.local.set({ quizData: processedData });
+            // ✅ Store answers in local storage
+            chrome.storage.local.set({ correctAnswers }, () => {
+                console.log("✅ [background.js] Correct answers updated.");
+                
+                // ✅ Notify content script to update highlighting
+                chrome.runtime.sendMessage({ action: "updateAnswers" });
+            });
 
-            console.log("✅ [background.js] Fetched & processed components.json.");
         } catch (error) {
             console.error("❌ [background.js] Error fetching components.json:", error);
         }
     },
-    { urls: ["https://www.netacad.com/content/noes/*/components.json"] } // ✅ Only listen for this pattern
+    { urls: ["https://www.netacad.com/content/noes/*/components.json"] }
 );
 
-function processQuizData(quizData) {
-    if (!Array.isArray(quizData)) {
-        console.error("❌ [background.js] Invalid JSON format:", quizData);
-        return "Invalid data format.";
-    }
+// ✅ Extract only correct answers
+function extractCorrectAnswers(quizData) {
+    if (!Array.isArray(quizData)) return [];
 
-    const quizQuestions = [];
-    const MAX_ENTRIES = 500; // Prevent memory crash
-
-    for (const item of quizData) {
-        if (quizQuestions.length >= MAX_ENTRIES) break;
-
-        // Ensure _component and _items are valid
-        if (!item._component || !Array.isArray(item._items)) continue;
-
+    const answers = new Set();
+    quizData.forEach(item => {
         if (item._component === "mcq") {
-            const question = decodeHtmlEntities(removeHtmlTags(item.body));
-            const correctAnswers = item._items
-                .filter(ans => ans._shouldBeSelected)
-                .map(ans => decodeHtmlEntities(removeHtmlTags(ans.text)));
-
-            for (const answer of correctAnswers) {
-                quizQuestions.push(`${question}, ${answer}`);
-                if (quizQuestions.length >= MAX_ENTRIES) break;
-            }
+            item._items.forEach(ans => {
+                if (ans._shouldBeSelected) {
+                    answers.add(decodeHtmlEntities(removeHtmlTags(ans.text)));
+                }
+            });
         }
-    }
+    });
 
-    console.log(`✅ [background.js] Processed ${quizQuestions.length} quiz entries.`);
-    return quizQuestions.length > 0 ? quizQuestions.join("\n") : "No quiz data found.";
+    console.log(`📌 [background.js] Stored ${answers.size} correct answers.`);
+    return Array.from(answers);
 }
 
 // ✅ Respond to requests for correct answers
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "getCorrectAnswers") {
-        chrome.storage.local.get("quizData", (data) => {
-            console.log("📥 [background.js] Received request for quiz answers.");
-
-            if (data.quizData) {
-                const correctAnswers = data.quizData
-                    .split("\n")
-                    .map(line => line.split(",")[1]?.trim())
-                    .filter(Boolean);
-
-                console.log("✅ [background.js] Sending correct answers:", correctAnswers);
-                sendResponse({ correctAnswers });
-            } else {
-                console.warn("⚠️ [background.js] No quiz data found.");
-                sendResponse({ correctAnswers: [] });
-            }
+        chrome.storage.local.get("correctAnswers", (data) => {
+            sendResponse({ correctAnswers: data.correctAnswers || [] });
         });
-        return true; // Keep message channel open for async response
+        return true; // Keeps response channel open
     }
 });
 
-// ✅ Safely remove HTML tags
+// ✅ Utility functions
 function removeHtmlTags(text) {
     return text ? text.replace(/<[^>]*>/g, '').trim() : "";
 }
 
-// ✅ Safely decode HTML entities
 function decodeHtmlEntities(text) {
-    if (!text) return ""; // Prevent null/undefined errors
-
+    if (!text) return "";
     return text
-        .replace(/&nbsp;/g, " ")  
-        .replace(/&#160;/g, " ")  
-        .replace(/&amp;/g, "&")  
-        .replace(/&lt;/g, "<")  
-        .replace(/&gt;/g, ">")  
-        .replace(/&quot;/g, '"')  
-        .replace(/&#39;/g, "'")  
-        .replace(/&rsquo;/g, "'")  
-        .replace(/&lsquo;/g, "'")  
-        .replace(/&ldquo;/g, '"')  
-        .replace(/&rdquo;/g, '"');  
+        .replace(/&nbsp;/g, " ")
+        .replace(/&#160;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&rsquo;/g, "'")
+        .replace(/&lsquo;/g, "'")
+        .replace(/&ldquo;/g, '"')
+        .replace(/&rdquo;/g, '"');
 }
