@@ -1,19 +1,30 @@
+let correctAnswers = new Set(); // Store correct answers globally
+
+// Listen for messages from content.js
+window.addEventListener("message", (event) => {
+    if (event.source !== window || event.data.type !== "SET_CORRECT_ANSWERS") return;
+    
+    correctAnswers = new Set(event.data.answers.map(ans => ans.toLowerCase().trim()));
+    console.log("Correct answers received in highlight.js:", correctAnswers); // ✅ Log received data
+
+    highlightAnswers(); // Re-run highlighting when answers arrive
+});
+
 function highlightAnswers() {
     function highlightInDocument(doc) {
-        doc.querySelectorAll("div, span, p").forEach(el => {
-            // Normalize text and check if it contains the phrase
+        doc.querySelectorAll("div, span, p, label").forEach(el => {
             const text = el.textContent.trim().toLowerCase();
-            if (text.includes("why should i take this module?") && !el.dataset.highlighted) {
-                el.style.backgroundColor = "yellow";
+            if (correctAnswers.has(text) && !el.dataset.highlighted) {
+                el.style.backgroundColor = "lightgreen";
                 el.style.fontWeight = "bold";
-                el.dataset.highlighted = "true"; // Prevent reprocessing
+                el.dataset.highlighted = "true"; 
             }
         });
 
-        // Handle shadow DOMs
+        // ✅ Recursively check shadow DOMs
         doc.querySelectorAll("*").forEach(el => {
             if (el.shadowRoot) {
-                highlightInDocument(el.shadowRoot); // Recursively highlight inside shadow DOM
+                highlightInDocument(el.shadowRoot);
             }
         });
     }
@@ -21,24 +32,22 @@ function highlightAnswers() {
     function processIframes() {
         document.querySelectorAll("iframe").forEach(iframe => {
             try {
-                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                if (iframeDoc) {
-                    highlightInDocument(iframeDoc);
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                if (doc) {
+                    highlightInDocument(doc);
                 }
-            } catch (e) {
-                console.warn("Cannot access iframe due to CORS restrictions:", e);
+            } catch (error) {
+                if (!iframe.dataset.corsErrorLogged) {
+                    console.warn("Ignoring CORS iframe:", error);
+                    iframe.dataset.corsErrorLogged = true;
+                }
             }
         });
     }
 
-    // Run initially and then periodically
     highlightInDocument(document);
     processIframes();
-    setInterval(() => {
-        highlightInDocument(document);
-        processIframes();
-    }, 2000);
 }
 
-// Call the function to highlight answers
-highlightAnswers();
+// ✅ Run every 3 seconds to detect new content
+setInterval(highlightAnswers, 3000);

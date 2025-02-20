@@ -25,9 +25,9 @@ chrome.webRequest.onCompleted.addListener(
             // ✅ Store processed quiz data in local storage for popup display
             chrome.storage.local.set({ quizData: processedData });
 
-            console.log("Fetched & processed components.json.");
+            console.log("✅ [background.js] Fetched & processed components.json.");
         } catch (error) {
-            console.error("Error fetching components.json:", error);
+            console.error("❌ [background.js] Error fetching components.json:", error);
         }
     },
     { urls: ["https://www.netacad.com/content/noes/*/components.json"] } // ✅ Only listen for this pattern
@@ -35,15 +35,18 @@ chrome.webRequest.onCompleted.addListener(
 
 function processQuizData(quizData) {
     if (!Array.isArray(quizData)) {
-        console.error("Invalid JSON format:", quizData);
+        console.error("❌ [background.js] Invalid JSON format:", quizData);
         return "Invalid data format.";
     }
 
     const quizQuestions = [];
-    const MAX_ENTRIES = 500; // ✅ Prevent memory crash
+    const MAX_ENTRIES = 500; // Prevent memory crash
 
     for (const item of quizData) {
-        if (quizQuestions.length >= MAX_ENTRIES) break; // ✅ Stop processing if too much data
+        if (quizQuestions.length >= MAX_ENTRIES) break;
+
+        // Ensure _component and _items are valid
+        if (!item._component || !Array.isArray(item._items)) continue;
 
         if (item._component === "mcq") {
             const question = decodeHtmlEntities(removeHtmlTags(item.body));
@@ -55,25 +58,35 @@ function processQuizData(quizData) {
                 quizQuestions.push(`${question}, ${answer}`);
                 if (quizQuestions.length >= MAX_ENTRIES) break;
             }
-        } else if (["matching", "objectMatching"].includes(item._component)) {
-            const question = decodeHtmlEntities(removeHtmlTags(item.title));
-
-            for (const pair of item._items) {
-                if (quizQuestions.length >= MAX_ENTRIES) break;
-
-                const left = decodeHtmlEntities(removeHtmlTags(pair.text || pair.question || ""));
-                const right = decodeHtmlEntities(removeHtmlTags(
-                    pair.answer || pair._options.find(opt => opt._isCorrect)?.text || ""
-                ));
-
-                quizQuestions.push(`${left}, ${right}`);
-            }
         }
     }
 
-    console.log(`Processed ${quizQuestions.length} quiz entries.`);
+    console.log(`✅ [background.js] Processed ${quizQuestions.length} quiz entries.`);
     return quizQuestions.length > 0 ? quizQuestions.join("\n") : "No quiz data found.";
 }
+
+// ✅ Respond to requests for correct answers
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "getCorrectAnswers") {
+        chrome.storage.local.get("quizData", (data) => {
+            console.log("📥 [background.js] Received request for quiz answers.");
+
+            if (data.quizData) {
+                const correctAnswers = data.quizData
+                    .split("\n")
+                    .map(line => line.split(",")[1]?.trim())
+                    .filter(Boolean);
+
+                console.log("✅ [background.js] Sending correct answers:", correctAnswers);
+                sendResponse({ correctAnswers });
+            } else {
+                console.warn("⚠️ [background.js] No quiz data found.");
+                sendResponse({ correctAnswers: [] });
+            }
+        });
+        return true; // Keep message channel open for async response
+    }
+});
 
 // ✅ Safely remove HTML tags
 function removeHtmlTags(text) {
