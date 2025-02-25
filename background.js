@@ -36,52 +36,40 @@ chrome.webRequest.onCompleted.addListener(
 function processQuizData(quizData) {
     if (!Array.isArray(quizData)) {
         console.error("❌ [background.js] Invalid JSON format:", quizData);
-        return "Invalid data format.";
+        return [];
     }
 
     const quizQuestions = [];
-    const MAX_ENTRIES = 500; // Prevent memory crash
+    const MAX_ENTRIES = 500;
 
     for (const item of quizData) {
         if (quizQuestions.length >= MAX_ENTRIES) break;
 
-        // Ensure _component and _items are valid
-        if (!item._component || !Array.isArray(item._items)) continue;
-
-        if (item._component === "mcq") {
+        if (item._component === "mcq" && item._items) {
             const question = decodeHtmlEntities(removeHtmlTags(item.body));
             const correctAnswers = item._items
                 .filter(ans => ans._shouldBeSelected)
                 .map(ans => decodeHtmlEntities(removeHtmlTags(ans.text)));
 
-            for (const answer of correctAnswers) {
-                quizQuestions.push(`${question}, ${answer}`);
-                if (quizQuestions.length >= MAX_ENTRIES) break;
-            }
+            quizQuestions.push({ question, answers: correctAnswers });
         }
     }
 
     console.log(`✅ [background.js] Processed ${quizQuestions.length} quiz entries.`);
-    return quizQuestions.length > 0 ? quizQuestions.join("\n") : "No quiz data found.";
+    return quizQuestions; // Ensure it's always an array
 }
 
-// ✅ Respond to requests for correct answers
+// ✅ Respond to requests for quiz answers
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "getCorrectAnswers") {
         chrome.storage.local.get("quizData", (data) => {
             console.log("📥 [background.js] Received request for quiz answers.");
 
             if (data.quizData) {
-                const correctAnswers = data.quizData
-                    .split("\n")
-                    .map(line => line.split(",")[1]?.trim())
-                    .filter(Boolean);
-
-                console.log("✅ [background.js] Sending correct answers:", correctAnswers);
-                sendResponse({ correctAnswers });
+                sendResponse({ quizData: data.quizData });
             } else {
                 console.warn("⚠️ [background.js] No quiz data found.");
-                sendResponse({ correctAnswers: [] });
+                sendResponse({ quizData: [] });
             }
         });
         return true; // Keep message channel open for async response
@@ -98,8 +86,7 @@ function decodeHtmlEntities(text) {
     if (!text) return ""; // Prevent null/undefined errors
 
     return text
-        .replace(/&nbsp;/g, " ")  
-        .replace(/&#160;/g, " ")  
+        .replace(/&nbsp;|&#160;|\u00A0/g, " ")  // Replace all non-breaking spaces
         .replace(/&amp;/g, "&")  
         .replace(/&lt;/g, "<")  
         .replace(/&gt;/g, ">")  
@@ -108,5 +95,7 @@ function decodeHtmlEntities(text) {
         .replace(/&rsquo;/g, "'")  
         .replace(/&lsquo;/g, "'")  
         .replace(/&ldquo;/g, '"')  
-        .replace(/&rdquo;/g, '"');  
+        .replace(/&rdquo;/g, '"')  
+        .replace(/\s+/g, " ")  // Collapse multiple spaces into a single space
+        .trim();
 }

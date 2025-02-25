@@ -8,10 +8,10 @@ function injectScript(file) {
 }
 
 // Fetch quiz answers from storage and pass them to highlight.js
-chrome.storage.local.get("correctAnswers", (data) => {
-    if (data.correctAnswers) {
-        console.log("Retrieved correctAnswers from storage:", data.correctAnswers); // ✅ Log to debug
-        window.postMessage({ type: "SET_CORRECT_ANSWERS", answers: data.correctAnswers }, "*");
+chrome.storage.local.get("quizData", (data) => {
+    if (data.quizData) {
+        console.log("Retrieved quizData from storage:", data.quizData); // ✅ Log to debug
+        window.postMessage({ type: "SET_QUESTION_ANSWER_PAIRS", qpair: data.quizData }, "*");
     }
 });
 
