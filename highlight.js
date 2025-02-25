@@ -1,4 +1,7 @@
-let qpair = []; // Store question-answer pairs globally
+// Check if qpair is already defined before declaring it
+if (typeof qpair === 'undefined') {
+    let qpair = []; // Only declare qpair once
+}
 
 // ✅ Listen for messages from content.js
 window.addEventListener("message", (event) => {
@@ -148,5 +151,5 @@ function highlightQuestionsAndAnswers() {
     processIframes();
 }
 
-// Run every 3 seconds to detect new content
+// ✅ Run every 3 seconds to detect new content
 setInterval(highlightQuestionsAndAnswers, 3000);

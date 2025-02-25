@@ -1,9 +1,20 @@
 const processedUrls = new Set(); // Track processed URLs
 
+// Clear processedUrls when the active tab URL changes
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === "complete") {
+        // Clear the set when a new page is loaded
+        processedUrls.clear();
+        console.log("✅ [background.js] Reset processedUrls for new page.");
+    }
+});
+
+// Fetch new components.json and process it
 chrome.webRequest.onCompleted.addListener(
     async (details) => {
         const url = details.url;
 
+        // Skip if URL has already been processed
         if (!url.includes("/components.json") || processedUrls.has(url)) return;
 
         processedUrls.add(url);
@@ -14,22 +25,28 @@ chrome.webRequest.onCompleted.addListener(
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const quizData = await response.json();
-            const correctAnswers = extractCorrectAnswers(quizData);
+            const processedQuizData = processQuizData(quizData); // Process the quiz data
 
-            // ✅ Store answers in local storage
-            chrome.storage.local.set({ correctAnswers }, () => {
-                console.log("✅ [background.js] Correct answers updated.");
-                
+            // Store quizData in local storage
+            chrome.storage.local.set({ quizData: processedQuizData }, () => {
+                console.log("✅ [background.js] Quiz data updated.");
+
                 // ✅ Notify content script to update highlighting
-                chrome.runtime.sendMessage({ action: "updateAnswers" });
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    if (tabs.length > 0) {
+                        chrome.tabs.sendMessage(tabs[0].id, { action: "updateAnswers" });
+                        console.log("✅ [background.js] Message sent to content script.");
+                    }
+                });
             });
-
         } catch (error) {
             console.error("❌ [background.js] Error fetching components.json:", error);
         }
     },
-    { urls: ["https://www.netacad.com/content/noes/*/components.json"] } // ✅ Only listen for this pattern
+    { urls: ["https://www.netacad.com/content/noes/*/components.json"] } // Listen only for this pattern
 );
+
+
 
 function processQuizData(quizData) {
     if (!Array.isArray(quizData)) {
