@@ -7,23 +7,11 @@ function injectScript(file) {
     document.documentElement.appendChild(script);
 }
 
-// ✅ Request answers from background.js
-chrome.runtime.sendMessage({ action: "getCorrectAnswers" }, (response) => {
-    if (response?.correctAnswers) {
-        console.log("📥 [content.js] Received correct answers:", response.correctAnswers);
-        window.postMessage({ type: "SET_CORRECT_ANSWERS", answers: response.correctAnswers }, "*");
-    }
-});
-
-// ✅ Listen for answer updates
-chrome.runtime.onMessage.addListener((message) => {
-    if (message.action === "updateAnswers") {
-        console.log("🔄 [content.js] Updating correct answers...");
-        chrome.runtime.sendMessage({ action: "getCorrectAnswers" }, (response) => {
-            if (response?.correctAnswers) {
-                window.postMessage({ type: "SET_CORRECT_ANSWERS", answers: response.correctAnswers }, "*");
-            }
-        });
+// Fetch quiz answers from storage and pass them to highlight.js
+chrome.storage.local.get("quizData", (data) => {
+    if (data.quizData) {
+        console.log("Retrieved quizData from storage:", data.quizData); // ✅ Log to debug
+        window.postMessage({ type: "SET_QUESTION_ANSWER_PAIRS", qpair: data.quizData }, "*");
     }
 });
 

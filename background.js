@@ -28,33 +28,47 @@ chrome.webRequest.onCompleted.addListener(
             console.error("❌ [background.js] Error fetching components.json:", error);
         }
     },
-    { urls: ["https://www.netacad.com/content/noes/*/components.json"] }
+    { urls: ["https://www.netacad.com/content/noes/*/components.json"] } // ✅ Only listen for this pattern
 );
 
-// ✅ Extract only correct answers
-function extractCorrectAnswers(quizData) {
-    if (!Array.isArray(quizData)) return [];
+function processQuizData(quizData) {
+    if (!Array.isArray(quizData)) {
+        console.error("❌ [background.js] Invalid JSON format:", quizData);
+        return [];
+    }
 
-    const answers = new Set();
-    quizData.forEach(item => {
-        if (item._component === "mcq") {
-            item._items.forEach(ans => {
-                if (ans._shouldBeSelected) {
-                    answers.add(decodeHtmlEntities(removeHtmlTags(ans.text)));
-                }
-            });
+    const quizQuestions = [];
+    const MAX_ENTRIES = 500;
+
+    for (const item of quizData) {
+        if (quizQuestions.length >= MAX_ENTRIES) break;
+
+        if (item._component === "mcq" && item._items) {
+            const question = decodeHtmlEntities(removeHtmlTags(item.body));
+            const correctAnswers = item._items
+                .filter(ans => ans._shouldBeSelected)
+                .map(ans => decodeHtmlEntities(removeHtmlTags(ans.text)));
+
+            quizQuestions.push({ question, answers: correctAnswers });
         }
-    });
+    }
 
-    console.log(`📌 [background.js] Stored ${answers.size} correct answers.`);
-    return Array.from(answers);
+    console.log(`✅ [background.js] Processed ${quizQuestions.length} quiz entries.`);
+    return quizQuestions; // Ensure it's always an array
 }
 
-// ✅ Respond to requests for correct answers
+// ✅ Respond to requests for quiz answers
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "getCorrectAnswers") {
-        chrome.storage.local.get("correctAnswers", (data) => {
-            sendResponse({ correctAnswers: data.correctAnswers || [] });
+        chrome.storage.local.get("quizData", (data) => {
+            console.log("📥 [background.js] Received request for quiz answers.");
+
+            if (data.quizData) {
+                sendResponse({ quizData: data.quizData });
+            } else {
+                console.warn("⚠️ [background.js] No quiz data found.");
+                sendResponse({ quizData: [] });
+            }
         });
         return true; // Keeps response channel open
     }
@@ -68,15 +82,16 @@ function removeHtmlTags(text) {
 function decodeHtmlEntities(text) {
     if (!text) return "";
     return text
-        .replace(/&nbsp;/g, " ")
-        .replace(/&#160;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&rsquo;/g, "'")
-        .replace(/&lsquo;/g, "'")
-        .replace(/&ldquo;/g, '"')
-        .replace(/&rdquo;/g, '"');
+        .replace(/&nbsp;|&#160;|\u00A0/g, " ")  // Replace all non-breaking spaces
+        .replace(/&amp;/g, "&")  
+        .replace(/&lt;/g, "<")  
+        .replace(/&gt;/g, ">")  
+        .replace(/&quot;/g, '"')  
+        .replace(/&#39;/g, "'")  
+        .replace(/&rsquo;/g, "'")  
+        .replace(/&lsquo;/g, "'")  
+        .replace(/&ldquo;/g, '"')  
+        .replace(/&rdquo;/g, '"')  
+        .replace(/\s+/g, " ")  // Collapse multiple spaces into a single space
+        .trim();
 }
