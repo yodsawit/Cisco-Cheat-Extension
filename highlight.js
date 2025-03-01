@@ -1,22 +1,19 @@
-// Check if qpair is already defined before declaring it
-if (typeof qpair === 'undefined') {
-    let qpair = []; // Only declare qpair once
-}
+// Ensure qpair is declared globally
+var qpair = []; // Use 'var' or 'let' outside any condition to make it globally accessible
+
 
 // ✅ Listen for messages from content.js
 window.addEventListener("message", (event) => {
-    if (event.source !== window || event.data.type !== "SET_QUESTION_ANSWER_PAIRS") return;
-    
-    qpair = event.data.qpair; // Store question-answer pairs
+  if (event.source !== window || event.data.type !== "SET_QUESTION_ANSWER_PAIRS") return;
+  
+  qpair = event.data.qpair; // ✅ Update global qpair
 
-    //console.log("Received qpair:", qpair);
-    
-    if (!Array.isArray(qpair)) {
-        console.error("Expected qpair to be an array, but received:", typeof qpair);
-        return;
-    }
+  if (!Array.isArray(qpair)) {
+      console.error("Expected qpair to be an array, but received:", typeof qpair);
+      return;
+  }
 
-    highlightQuestionsAndAnswers(); // Re-run highlighting when pairs arrive
+  highlightQuestionsAndAnswers(); // ✅ Ensure it runs after qpair is set
 });
 
 // Function to decode HTML entities in text
