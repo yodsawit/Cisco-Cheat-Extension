@@ -1,10 +1,10 @@
 ## Cisco Cheat Extension
-A Chrome extension that extracts quiz questions from NetAcad courses.
+A Chrome extension for lazy ISNE fellow.
 
 ## Installation
 Clone this repository or download the ZIP:
 ```
-git clone https://github.com/your-username/netacad-quiz-extractor.git
+git clone https://github.com/yodsawit/Cisco-Cheat-Extension.git
 ```
 If downloaded as a ZIP, extract it to a folder.
 ## Enable Developer Mode in Chrome
