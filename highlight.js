@@ -24,25 +24,32 @@ function decodeHtmlEntities(text) {
   if (!text) return "";
 
   return text
-    .replace(/&nbsp;|&#160;|\u00A0/g, " ") // Replace all non-breaking spaces
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#44;/g, ",")
-    .replace(/&rsquo;/g, "'")
-    .replace(/&lsquo;/g, "'")
-    .replace(/&ldquo;/g, '"')
-    .replace(/&rdquo;/g, '"')
-    .replace(/\s+/g, " ") // Collapse multiple spaces into a single space
-    .trim();
+  .replace(/&nbsp;|&#160;|\u00A0/g, " ")  // Non-breaking spaces
+  .replace(/&amp;/g, "&")  
+  .replace(/&lt;/g, "<")  
+  .replace(/&gt;/g, ">")  
+  .replace(/&quot;/g, '"')  
+  .replace(/&#39;|&rsquo;|&lsquo;/g, "'")  // Single quotes
+  .replace(/&ldquo;|&rdquo;/g, '"')  // Double quotes
+  .replace(/&#44;/g, ",")  
+  .replace(/&#x2216;|\u2216/g, "\\")  // Reverse solidus (backslash)
+  .replace(/&ndash;|\u2013/g, "-")  // En dash
+  .replace(/&mdash;|\u2014/g, "-")  // Em dash
+  .replace(/&times;/g, "x")  // Multiplication sign
+  .replace(/&divide;/g, "/")  // Division sign
+  .replace(/[\u200B\u200E\u200F]/g, "")  // Remove zero-width spaces & direction marks
+  .replace(/\s+/g, " ")  // Collapse multiple spaces
+  .trim();
+}
+
+function removeHtmlTags(text) {
+  return text ? text.replace(/<[^>]*>/g, '').trim() : "";
 }
 
 function highlightQuestionsAndAnswers() {
   function highlightInDocument(doc) {
     doc.querySelectorAll("div, span, p, label").forEach((el) => {
-      const text = decodeHtmlEntities(el.textContent.toLowerCase());
+      const text = decodeHtmlEntities(removeHtmlTags(el.textContent.toLowerCase()));
 
       const skipClasses = [
         "mcq__item",
@@ -53,6 +60,10 @@ function highlightQuestionsAndAnswers() {
 
       if (skipClasses.some((className) => el.classList.contains(className))) {
         return; // Skip this element
+      }
+
+      if(text.includes("hat is the purpose of the")){
+        console.log(text)
       }
 
       // Find matching question (for both MCQ and Matching types)
