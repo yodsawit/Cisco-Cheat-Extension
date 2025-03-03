@@ -60,18 +60,32 @@ function processQuizData(quizData) {
     for (const item of quizData) {
         if (quizQuestions.length >= MAX_ENTRIES) break;
 
-        if (item._component === "mcq" && item._items) {
+        const questionType = item._component; // Store question type
+
+        if (questionType === "mcq" && item._items) {
             const question = decodeHtmlEntities(removeHtmlTags(item.body));
             const correctAnswers = item._items
                 .filter(ans => ans._shouldBeSelected)
                 .map(ans => decodeHtmlEntities(removeHtmlTags(ans.text)));
 
-            quizQuestions.push({ question, answers: correctAnswers });
+            quizQuestions.push({ question, questionType, answers: correctAnswers });
+
+        } else if (["matching", "objectMatching"].includes(questionType) && item._items) {
+            for (const pair of item._items) {
+                const question = decodeHtmlEntities(removeHtmlTags(pair.text || pair.question || ""));
+                const correctAnswers = [
+                    decodeHtmlEntities(removeHtmlTags(
+                        (pair._options || []).find(opt => opt._isCorrect)?.text || pair.answer || ""
+                    ))
+                ];
+
+                quizQuestions.push({ question, questionType, answers: correctAnswers });
+            }
         }
     }
 
     console.log(`✅ [background.js] Processed ${quizQuestions.length} quiz entries.`);
-    return quizQuestions; // Ensure it's always an array
+    return quizQuestions; // Always return an array
 }
 
 // ✅ Respond to requests for quiz answers
@@ -104,7 +118,8 @@ function decodeHtmlEntities(text) {
         .replace(/&lt;/g, "<")  
         .replace(/&gt;/g, ">")  
         .replace(/&quot;/g, '"')  
-        .replace(/&#39;/g, "'")  
+        .replace(/&#39;/g, "'")
+        .replace(/&#44;/g, ",") 
         .replace(/&rsquo;/g, "'")  
         .replace(/&lsquo;/g, "'")  
         .replace(/&ldquo;/g, '"')  
