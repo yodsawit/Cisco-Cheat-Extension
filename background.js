@@ -46,7 +46,7 @@ chrome.webRequest.onCompleted.addListener(
       );
     }
   },
-  { urls: ["https://www.netacad.com/content/noes/*/components.json"] } // Listen only for this pattern
+  { urls: ["https://www.netacad.com/content/*/components.json"] } // Listen only for this pattern
 );
 
 function processQuizData(quizData) {
