@@ -29,7 +29,7 @@ function decodeHtmlEntities(text) {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#39;|&rsquo;|&lsquo;/g, "'") // Single quotes
+    .replace(/&#39;|&rsquo;|&lsquo;|\u2019/g, "'") // Single quotes
     .replace(/&ldquo;|&rdquo;/g, '"') // Double quotes
     .replace(/&#44;/g, ",")
     .replace(/&#x2216;|\u2216/g, "\\") // Reverse solidus (backslash)
@@ -37,6 +37,17 @@ function decodeHtmlEntities(text) {
     .replace(/&mdash;|\u2014/g, "-") // Em dash
     .replace(/&times;/g, "x") // Multiplication sign
     .replace(/&divide;/g, "/") // Division sign
+    .replace(/&hellip;/g, "…") // Ellipsis
+    .replace(/&euro;/g, "€") // Euro
+    .replace(/&pound;/g, "£") // Pound
+    .replace(/&yen;/g, "¥") // Yen
+    .replace(/&plusmn;/g, "±") // Plus-minus sign
+    .replace(/&bull;/g, "•") // Bullet point
+    .replace(/&alpha;/g, "α") // Alpha
+    .replace(/&beta;/g, "β") // Beta
+    .replace(/&gamma;/g, "γ") // Gamma
+    .replace(/&zwnj;/g, "") // Zero-width non-joiner
+    .replace(/&zwj;/g, "") // Zero-width joiner
     .replace(/[\u200B\u200E\u200F]/g, "") // Remove zero-width spaces & direction marks
     .replace(/\s+/g, " ") // Collapse multiple spaces
     .trim();
@@ -64,6 +75,15 @@ function highlightQuestionsAndAnswers() {
         return; // Skip this element
       }
 
+      // if(text.includes("rther investigation suggests that this was")){
+      //   console.log(text)
+      //   const a = qpair.find((q) => decodeHtmlEntities(q.question.toLowerCase()).includes("rther investigation suggests that this was"))
+      //   console.log(decodeHtmlEntities(a.question.toLowerCase()));
+      //   const N = qpair.find(
+      //     (q) => decodeHtmlEntities(q.question.toLowerCase()) === text
+      //   );
+      //   console.log(el)
+      // }
       // Find matching question (for both MCQ and Matching types)
       const matchingQuestion = qpair.find(
         (q) => decodeHtmlEntities(q.question.toLowerCase()) === text
@@ -137,28 +157,36 @@ function highlightQuestionsAndAnswers() {
 
     mcqContainer.querySelectorAll("div, span, p, label").forEach((el) => {
       const skipClasses = ["objectMatching-option-item-container"];
-    
+
       // Skip this element if it belongs to any of the skip classes
       if (skipClasses.some((className) => el.classList.contains(className))) {
         return;
       }
-    
+
       const text = decodeHtmlEntities(el.textContent.toLowerCase());
-    
+
       // Check if the element is a dropdown button and open it if it's closed
-      const dropdownButton = el.closest('.dropdown__btn');
-      if (dropdownButton && dropdownButton.getAttribute("aria-expanded") === "false") {  
+      const dropdownButton = el.closest(".dropdown__btn");
+      if (
+        dropdownButton &&
+        dropdownButton.getAttribute("aria-expanded") === "false"
+      ) {
         // Add an event listener to highlight answers once the dropdown is opened
-        dropdownButton.addEventListener('click', () => {
+        dropdownButton.addEventListener("click", () => {
           // Ensure the dropdown list is visible
-          const dropdownList = dropdownButton.closest('.matching__select-container').querySelector('.dropdown__list');
-          if (dropdownList && dropdownList.style.display !== 'none') {
+          const dropdownList = dropdownButton
+            .closest(".matching__select-container")
+            .querySelector(".dropdown__list");
+          if (dropdownList && dropdownList.style.display !== "none") {
             // Highlight the answers in the dropdown list
-            dropdownList.querySelectorAll('.dropdown__item').forEach((item) => {
-              const itemText = decodeHtmlEntities(item.textContent.toLowerCase());
+            dropdownList.querySelectorAll(".dropdown__item").forEach((item) => {
+              const itemText = decodeHtmlEntities(
+                item.textContent.toLowerCase()
+              );
               if (
                 matchingQuestion.answers.some(
-                  (answer) => decodeHtmlEntities(answer.toLowerCase()) === itemText
+                  (answer) =>
+                    decodeHtmlEntities(answer.toLowerCase()) === itemText
                 )
               ) {
                 item.style.backgroundColor = questionColor; // Use the question's color
@@ -168,7 +196,7 @@ function highlightQuestionsAndAnswers() {
           }
         });
       }
-    
+
       // Now, after opening the dropdown, check if the answer matches
       if (
         matchingQuestion.answers.some(
@@ -178,7 +206,7 @@ function highlightQuestionsAndAnswers() {
         el.style.backgroundColor = questionColor; // Use the question's color
         el.style.fontWeight = "bold";
       }
-    });        
+    });
   }
 
   function findClosestMCQContainer(element) {
