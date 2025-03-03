@@ -19,6 +19,7 @@ chrome.webRequest.onCompleted.addListener(
 
     processedUrls.add(url);
     console.log(`🔄 [background.js] Fetching new components.json: ${url}`);
+    console.log(url);
 
     try {
       const response = await fetch(url);
@@ -46,7 +47,12 @@ chrome.webRequest.onCompleted.addListener(
       );
     }
   },
-  { urls: ["https://www.netacad.com/content/noes/*/components.json"] } // Listen only for this pattern
+  {
+    urls: [
+      "https://www.netacad.com/content/noes/*/components.json",
+      "https://www.netacad.com/content/nad/*/components.json",
+    ],
+  }
 );
 
 function processQuizData(quizData) {
