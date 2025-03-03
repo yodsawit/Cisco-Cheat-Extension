@@ -24,32 +24,34 @@ function decodeHtmlEntities(text) {
   if (!text) return "";
 
   return text
-  .replace(/&nbsp;|&#160;|\u00A0/g, " ")  // Non-breaking spaces
-  .replace(/&amp;/g, "&")  
-  .replace(/&lt;/g, "<")  
-  .replace(/&gt;/g, ">")  
-  .replace(/&quot;/g, '"')  
-  .replace(/&#39;|&rsquo;|&lsquo;/g, "'")  // Single quotes
-  .replace(/&ldquo;|&rdquo;/g, '"')  // Double quotes
-  .replace(/&#44;/g, ",")  
-  .replace(/&#x2216;|\u2216/g, "\\")  // Reverse solidus (backslash)
-  .replace(/&ndash;|\u2013/g, "-")  // En dash
-  .replace(/&mdash;|\u2014/g, "-")  // Em dash
-  .replace(/&times;/g, "x")  // Multiplication sign
-  .replace(/&divide;/g, "/")  // Division sign
-  .replace(/[\u200B\u200E\u200F]/g, "")  // Remove zero-width spaces & direction marks
-  .replace(/\s+/g, " ")  // Collapse multiple spaces
-  .trim();
+    .replace(/&nbsp;|&#160;|\u00A0/g, " ") // Non-breaking spaces
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&rsquo;|&lsquo;/g, "'") // Single quotes
+    .replace(/&ldquo;|&rdquo;/g, '"') // Double quotes
+    .replace(/&#44;/g, ",")
+    .replace(/&#x2216;|\u2216/g, "\\") // Reverse solidus (backslash)
+    .replace(/&ndash;|\u2013/g, "-") // En dash
+    .replace(/&mdash;|\u2014/g, "-") // Em dash
+    .replace(/&times;/g, "x") // Multiplication sign
+    .replace(/&divide;/g, "/") // Division sign
+    .replace(/[\u200B\u200E\u200F]/g, "") // Remove zero-width spaces & direction marks
+    .replace(/\s+/g, " ") // Collapse multiple spaces
+    .trim();
 }
 
 function removeHtmlTags(text) {
-  return text ? text.replace(/<[^>]*>/g, '').trim() : "";
+  return text ? text.replace(/<[^>]*>/g, "").trim() : "";
 }
 
 function highlightQuestionsAndAnswers() {
   function highlightInDocument(doc) {
     doc.querySelectorAll("div, span, p, label").forEach((el) => {
-      const text = decodeHtmlEntities(removeHtmlTags(el.textContent.toLowerCase()));
+      const text = decodeHtmlEntities(
+        removeHtmlTags(el.textContent.toLowerCase())
+      );
 
       const skipClasses = [
         "mcq__item",
@@ -62,10 +64,6 @@ function highlightQuestionsAndAnswers() {
         return; // Skip this element
       }
 
-      if(text.includes("hat is the purpose of the")){
-        console.log(text)
-      }
-
       // Find matching question (for both MCQ and Matching types)
       const matchingQuestion = qpair.find(
         (q) => decodeHtmlEntities(q.question.toLowerCase()) === text
@@ -74,10 +72,9 @@ function highlightQuestionsAndAnswers() {
       if (matchingQuestion && !el.dataset.highlighted) {
         // If it's an objectMatching question, highlight with the color of the nearby container
         if (matchingQuestion.questionType === "objectMatching") {
-          // Find the closest parent container with class 'objectMatching-category-item-inner'
-          const categoryItem = el.closest(
-            ".objectMatching-category-item-inner"
-          );
+          const categoryItem =
+            el.closest(".matching__item-container-options-wrapper") ||
+            el.closest(".objectMatching-category-item-inner");
 
           if (categoryItem) {
             const categoryNumber = categoryItem.querySelector(
@@ -140,11 +137,39 @@ function highlightQuestionsAndAnswers() {
 
     mcqContainer.querySelectorAll("div, span, p, label").forEach((el) => {
       const skipClasses = ["objectMatching-option-item-container"];
-
+    
+      // Skip this element if it belongs to any of the skip classes
       if (skipClasses.some((className) => el.classList.contains(className))) {
-        return; // Skip this element
+        return;
       }
+    
       const text = decodeHtmlEntities(el.textContent.toLowerCase());
+    
+      // Check if the element is a dropdown button and open it if it's closed
+      const dropdownButton = el.closest('.dropdown__btn');
+      if (dropdownButton && dropdownButton.getAttribute("aria-expanded") === "false") {  
+        // Add an event listener to highlight answers once the dropdown is opened
+        dropdownButton.addEventListener('click', () => {
+          // Ensure the dropdown list is visible
+          const dropdownList = dropdownButton.closest('.matching__select-container').querySelector('.dropdown__list');
+          if (dropdownList && dropdownList.style.display !== 'none') {
+            // Highlight the answers in the dropdown list
+            dropdownList.querySelectorAll('.dropdown__item').forEach((item) => {
+              const itemText = decodeHtmlEntities(item.textContent.toLowerCase());
+              if (
+                matchingQuestion.answers.some(
+                  (answer) => decodeHtmlEntities(answer.toLowerCase()) === itemText
+                )
+              ) {
+                item.style.backgroundColor = questionColor; // Use the question's color
+                item.style.fontWeight = "bold";
+              }
+            });
+          }
+        });
+      }
+    
+      // Now, after opening the dropdown, check if the answer matches
       if (
         matchingQuestion.answers.some(
           (answer) => decodeHtmlEntities(answer.toLowerCase()) === text
@@ -153,13 +178,17 @@ function highlightQuestionsAndAnswers() {
         el.style.backgroundColor = questionColor; // Use the question's color
         el.style.fontWeight = "bold";
       }
-    });
+    });        
   }
 
   function findClosestMCQContainer(element) {
     let parentElement = element;
     while (parentElement) {
-      const questionContainer = ["mcq__inner", "component__widget-inner", "matching__item-title_inner"];
+      const questionContainer = [
+        "mcq__inner",
+        "component__widget-inner",
+        "matching__item-container-options-wrapper",
+      ];
 
       if (
         parentElement.classList &&
