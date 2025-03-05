@@ -1,10 +1,10 @@
 ## Cisco Cheat Extension
-A Chrome extension for lazy ISNE fellow.
+A Chrome extension for lazy ISNE fellows.
 
 ## Installation
 Clone this repository or download the ZIP:
 ```
-git clone https://github.com/yodsawit/Cisco-Cheat-Extension.git
+git clone https://github.com/yodsawit/Cisco-Extension.git
 ```
 If downloaded as a ZIP, extract it to a folder.
 ## Enable Developer Mode in Chrome
